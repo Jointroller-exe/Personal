@@ -1,0 +1,329 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Will you be my Valentine?</title>
+  <style>
+    :root{
+      --bg1:#f7c7d6;
+      --bg2:#f2a9c7;
+      --card:#ffffffcc;
+      --text:#111;
+      --muted:#444a;
+      --yes1:#ff4f7a;
+      --yes2:#ff2f68;
+      --stroke:#00000010;
+      --radius: 26px;
+    }
+
+    *{ box-sizing:border-box; }
+    body{
+      margin:0;
+      min-height:100vh;
+      display:grid;
+      place-items:center;
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
+      color:var(--text);
+      background: radial-gradient(1200px 700px at 30% 20%, #fff6, transparent 55%),
+                  linear-gradient(135deg, var(--bg1), var(--bg2));
+      overflow:hidden;
+    }
+
+    .card{
+      width:min(720px, 92vw);
+      padding: 36px 26px 28px;
+      border-radius: var(--radius);
+      background: var(--card);
+      border: 1px solid var(--stroke);
+      box-shadow: 0 24px 70px rgba(0,0,0,.14);
+      text-align:center;
+      position:relative;
+    }
+
+    .emoji{
+      width: 92px;
+      height: 92px;
+      margin: 4px auto 8px;
+      display:grid;
+      place-items:center;
+      border-radius: 999px;
+      background: #fff8;
+      border: 1px solid var(--stroke);
+      font-size: 46px;
+      user-select:none;
+    }
+
+    h1{
+      margin: 12px 0 22px;
+      font-size: clamp(22px, 3.3vw, 34px);
+      letter-spacing: -0.4px;
+    }
+
+    .buttons-area{
+      /* this is the "playfield" where the No button can run */
+      position: relative;
+      height: 170px;
+      width: min(520px, 88vw);
+      margin: 0 auto;
+      border-radius: 18px;
+    }
+
+    .btn{
+      border:0;
+      cursor:pointer;
+      font-weight: 800;
+      border-radius: 999px;
+      padding: 18px 26px;
+      box-shadow: 0 14px 30px rgba(0,0,0,.12);
+      transition: transform .08s ease;
+      user-select:none;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn:active{ transform: scale(.98); }
+
+    #yesBtn{
+      position:absolute;
+      left: 40px;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 28px;
+      padding: 22px 44px;
+      color:white;
+      background: linear-gradient(180deg, var(--yes1), var(--yes2));
+      box-shadow: 0 18px 40px rgba(255, 47, 104, .35);
+    }
+
+    #noBtn{
+      position:absolute;
+      left: 340px;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 16px;
+      padding: 12px 18px;
+      background: #f4f4f4;
+      color:#222;
+      border: 1px solid #00000012;
+      box-shadow: 0 10px 22px rgba(0,0,0,.10);
+    }
+
+    .note{
+      margin-top: 18px;
+      font-size: 13px;
+      color: var(--muted);
+    }
+
+    .top-right{
+      position:fixed;
+      right: 14px;
+      top: 14px;
+      display:flex;
+      gap:10px;
+      align-items:center;
+      z-index:10;
+    }
+
+    .pill{
+      font-size: 12px;
+      padding: 10px 12px;
+      border-radius: 999px;
+      background: #ffffffaa;
+      border: 1px solid var(--stroke);
+      backdrop-filter: blur(10px);
+    }
+    .pill button{
+      margin-left:8px;
+      border:0;
+      background:#0000;
+      cursor:pointer;
+      font-weight:700;
+    }
+
+    .modal{
+      position:fixed;
+      inset:0;
+      display:none;
+      place-items:center;
+      background:#00000066;
+      padding: 18px;
+    }
+    .modal.show{ display:grid; }
+    .modal .box{
+      width:min(520px, 92vw);
+      background:#fff;
+      border-radius: 18px;
+      padding: 18px 16px;
+      text-align:center;
+      box-shadow: 0 30px 80px rgba(0,0,0,.25);
+    }
+    .modal .box h2{ margin:6px 0 8px; }
+    .modal .box p{ margin:0 0 12px; color:#444; }
+  </style>
+</head>
+
+<body>
+  <div class="top-right">
+    <div class="pill" id="audioPill">
+      🔊 Music: <span id="audioStatus">Off</span>
+      <button id="toggleAudio" aria-label="Toggle music">Toggle</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="emoji">🐱💖</div>
+    <h1><span id="name">Sandra</span>, will you be my valentine?</h1>
+
+    <div class="buttons-area" id="arena">
+      <button class="btn" id="yesBtn">Yes</button>
+      <button class="btn" id="noBtn">No</button>
+    </div>
+
+    <div class="note">“No” seems a bit shy 😈</div>
+  </div>
+
+  <!-- Put your MP3 in same folder as index.html and name it audio.mp3 -->
+  <audio id="bgm" src="audio.mp3" loop preload="auto"></audio>
+
+  <div class="modal" id="modal">
+    <div class="box">
+      <h2>YAY! 🎉</h2>
+      <p>You said yes 💘</p>
+      <button class="btn" style="background:#111;color:#fff;padding:12px 18px" id="closeModal">Close</button>
+    </div>
+  </div>
+
+  <script>
+    // ====== Config you can tweak ======
+    const CONFIG = {
+      repelRadius: 95,      // px: how close the cursor can get before "No" runs
+      jumpStrength: 140,    // px: how far it tries to jump away each time
+      padding: 10,          // px: keep the button inside arena with padding
+      startMusicOnFirstTap: true
+    };
+
+    const arena = document.getElementById('arena');
+    const noBtn = document.getElementById('noBtn');
+    const yesBtn = document.getElementById('yesBtn');
+
+    const bgm = document.getElementById('bgm');
+    const audioStatus = document.getElementById('audioStatus');
+    const toggleAudio = document.getElementById('toggleAudio');
+
+    const modal = document.getElementById('modal');
+    const closeModal = document.getElementById('closeModal');
+
+    let musicOn = false;
+
+    function clamp(v, min, max){ return Math.max(min, Math.min(max, v)); }
+
+    function setAudioUI(){
+      audioStatus.textContent = musicOn ? "On" : "Off";
+    }
+
+    async function tryPlayMusic(){
+      try{
+        await bgm.play();
+        musicOn = true;
+        setAudioUI();
+      }catch(e){
+        // Autoplay blocked until user gesture — that's normal.
+        musicOn = false;
+        setAudioUI();
+      }
+    }
+
+    function stopMusic(){
+      bgm.pause();
+      musicOn = false;
+      setAudioUI();
+    }
+
+    toggleAudio.addEventListener('click', async () => {
+      if(!musicOn) await tryPlayMusic();
+      else stopMusic();
+    });
+
+    // Start music on first interaction (because autoplay is blocked otherwise)
+    if (CONFIG.startMusicOnFirstTap){
+      const startOnce = async () => {
+        if(!musicOn) await tryPlayMusic();
+        window.removeEventListener('pointerdown', startOnce);
+      };
+      window.addEventListener('pointerdown', startOnce, { once:true });
+    }
+
+    // ---- NO button runaway logic ----
+    function getRects(){
+      const a = arena.getBoundingClientRect();
+      const n = noBtn.getBoundingClientRect();
+      return { a, n };
+    }
+
+    function moveNoButtonAwayFrom(pointerX, pointerY){
+      const { a, n } = getRects();
+
+      // pointer position relative to arena
+      const px = pointerX - a.left;
+      const py = pointerY - a.top;
+
+      // current button center relative to arena
+      const bx = (n.left - a.left) + n.width/2;
+      const by = (n.top  - a.top ) + n.height/2;
+
+      const dx = bx - px;
+      const dy = by - py;
+      const dist = Math.hypot(dx, dy);
+
+      if(dist > CONFIG.repelRadius) return;
+
+      // direction away from pointer (normalize)
+      const ux = dx / (dist || 1);
+      const uy = dy / (dist || 1);
+
+      // propose new center
+      let nx = bx + ux * CONFIG.jumpStrength;
+      let ny = by + uy * CONFIG.jumpStrength;
+
+      // clamp inside arena
+      const minX = CONFIG.padding + n.width/2;
+      const maxX = a.width - CONFIG.padding - n.width/2;
+      const minY = CONFIG.padding + n.height/2;
+      const maxY = a.height - CONFIG.padding - n.height/2;
+
+      nx = clamp(nx, minX, maxX);
+      ny = clamp(ny, minY, maxY);
+
+      // set absolute position inside arena
+      noBtn.style.left = (nx - n.width/2) + "px";
+      noBtn.style.top  = (ny - n.height/2) + "px";
+      noBtn.style.transform = "translate(0,0)"; // override initial translate
+    }
+
+    // Mouse / touch move
+    arena.addEventListener('pointermove', (e) => {
+      moveNoButtonAwayFrom(e.clientX, e.clientY);
+    });
+
+    // Also run away when the No button is focused/approached on mobile taps
+    noBtn.addEventListener('pointerdown', (e) => {
+      // if someone somehow taps it, immediately move it
+      moveNoButtonAwayFrom(e.clientX, e.clientY);
+      e.preventDefault();
+    });
+
+    // ---- YES button action ----
+    yesBtn.addEventListener('click', async () => {
+      modal.classList.add('show');
+      // optional: ensure music starts on YES too
+      if(!musicOn) await tryPlayMusic();
+    });
+
+    closeModal.addEventListener('click', () => {
+      modal.classList.remove('show');
+    });
+
+    // init UI
+    setAudioUI();
+  </script>
+</body>
+</html>
